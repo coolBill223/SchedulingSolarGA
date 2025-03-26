@@ -134,7 +134,7 @@ def load_data():
         #print(f"Drive Time first 10 rows after conversion:\n{df['Drive Time'].head(10)}")
 
     # **fill nan with 0**
-    df["Drive Time"].fillna(0, inplace=True)
+    df["Drive Time"] = df["Drive Time"].fillna(0)
 
     if "Tilt" in df.columns:
         df["Tilt"] = df["Tilt"].apply(clean_angle)
@@ -195,7 +195,7 @@ def load_data():
             df[col] = df[col].dt.total_seconds() / 60
 
     pd.set_option("display.max_columns", None)
-    #print(f"The first 10 rows of the data:\n{df[features].head(10)}")
+    print(f"The first 10 rows of the data:\n{df[features].head(10)}")
     
 # **Standardization**
     X_scaler = StandardScaler()
