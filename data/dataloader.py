@@ -91,17 +91,17 @@ def load_data():
     target = "Total Direct Time for Project for Hourly Employees (Including Drive Time)"
     
     if target not in df.columns:
-        print(f"Target {target} doesn't exist！")
+        #print(f"Target {target} doesn't exist！")
         return None, None, None, None  
 
-    print(f"Target {target}'s unique values: {df[target].unique()}")
+    #print(f"Target {target}'s unique values: {df[target].unique()}")
 
     if pd.api.types.is_timedelta64_dtype(df[target]):
-        print(f"`{target}` is timedelta64 type, convert to minutes")
+        #print(f"`{target}` is timedelta64 type, convert to minutes")
         df[target] = df[target].dt.total_seconds() / 60
         
     if df[target].apply(lambda x: isinstance(x, (datetime.datetime, datetime.time, str, pd.Timedelta))).any():
-        print(f"`{target}` includes datetime, time, str or timedelta, convert to minutes")
+        #print(f"`{target}` includes datetime, time, str or timedelta, convert to minutes")
         df[target] = df[target].apply(convert_time_to_minutes)
 
     # **make sure target is numeric to train**
@@ -111,9 +111,9 @@ def load_data():
     if df[target].isnull().sum() > 0:
         df[target].fillna(df[target].mean(), inplace=True)
 
-    print(f"Target{target} is null: {df[target].isnull().sum()}")
-    print(df[target].dtype)
-    print(df[target].head(10))
+    #print(f"Target{target} is null: {df[target].isnull().sum()}")
+    #print(df[target].dtype)
+    #print(df[target].head(10))
 
     # change Drive Time
     #print(f"Original Drive Time first 10 rows:\n{df['Drive Time'].head(10)}")
@@ -123,7 +123,7 @@ def load_data():
 
         # If it is timedelta64，change it into minutes
         if pd.api.types.is_timedelta64_dtype(df["Drive Time"]):
-            print("🔍 `Drive Time` is timedelta64 type, need to convert to minutes")
+            #print("`Drive Time` is timedelta64 type, need to convert to minutes")
             df["Drive Time"] = df["Drive Time"].dt.total_seconds() / 60
         else:
             df["Drive Time"] = df["Drive Time"].astype(str).str.strip()  # delete the space
@@ -131,7 +131,7 @@ def load_data():
             df["Drive Time"] = df["Drive Time"].apply(convert_time_to_minutes)
 
         # make sure Drive Time is in minutes
-        print(f"Drive Time first 10 rows after conversion:\n{df['Drive Time'].head(10)}")
+        #print(f"Drive Time first 10 rows after conversion:\n{df['Drive Time'].head(10)}")
 
     # **fill nan with 0**
     df["Drive Time"].fillna(0, inplace=True)
@@ -158,17 +158,17 @@ def load_data():
     # change to numeric
     df[target] = pd.to_numeric(df[target], errors="coerce")
 
-    print(f"Target {target} is null: {df[target].isnull().sum()}")
-    print(df[target].dtype)
-    print(df[target].head(10))
+    #print(f"Target {target} is null: {df[target].isnull().sum()}")
+    #print(df[target].dtype)
+    #print(df[target].head(10))
 
     df = df.dropna(subset=[target])  # delete the row that y is null
 
 
-    print(f"Data column: {df.columns.tolist()}")
+    #print(f"Data column: {df.columns.tolist()}")
 
     # **check nan/null**
-    print(f"Data is null:\n{df.isnull().sum()}")
+    #print(f"Data is null:\n{df.isnull().sum()}")
 
     exclude_columns = [
         "Project ID", "Notes", "Total # of Days on Site",
@@ -186,16 +186,16 @@ def load_data():
         return None, None, None, None  
 
     # **check the feature head is null**
-    print(f"Selected features:\n{df[features].head()}")
+    #print(f"Selected features:\n{df[features].head()}")
 
     # **make sure all the data is numeric**
     for col in features:
         if pd.api.types.is_timedelta64_dtype(df[col]):
-            print(f"🔍 `{col}` is timedelta64 type，translate into minutes")
+            #print(f"`{col}` is timedelta64 type，translate into minutes")
             df[col] = df[col].dt.total_seconds() / 60
 
     pd.set_option("display.max_columns", None)
-    print(f"🔍 The first 10 rows of the data:\n{df[features].head(10)}")
+    #print(f"The first 10 rows of the data:\n{df[features].head(10)}")
     
 # **Standardization**
     X_scaler = StandardScaler()
