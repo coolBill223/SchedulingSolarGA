@@ -62,13 +62,94 @@ def convert_time_to_minutes(value):
 
     return None  # read input failed, return none
 
+def convert_dhm_to_minutes_strict(value):
+    """
+    Converts values in 'D:H:M', 'D:H', or 'H' format into total minutes.
+    - Handles Excel auto-formatted cells (datetime.datetime or time)
+    - Treats 1:9:30 as 1 day, 9 hours, 30 minutes (NOT hours:minutes:seconds!)
+    """
+    import datetime
+
+    if pd.isna(value) or value in ["", "nan", "None"]:
+        return None
+
+    try:
+        # Case 1: datetime.datetime from Excel (e.g. 1900-01-02 09:30:00)
+        if isinstance(value, datetime.datetime):
+            base = datetime.datetime(1899, 12, 30)  # Excel zero-date origin
+            delta = value - base
+            return delta.total_seconds() / 60
+
+        # Case 2: datetime.time → just hours, minutes, seconds
+        elif isinstance(value, datetime.time):
+            return value.hour * 60 + value.minute + value.second / 60
+
+        # Case 3: string (D:H:M or D:H)
+        parts = list(map(int, str(value).strip().split(":")))
+
+        if len(parts) == 3:
+            d, h, m = parts
+        elif len(parts) == 2:
+            d, h = parts
+            m = 0
+        elif len(parts) == 1:
+            d = 0
+            h = parts[0]
+            m = 0
+        else:
+            return None
+
+        return d * 24 * 60 + h * 60 + m
+    except Exception as e:
+        print(f"[WARN] Failed to convert value: {value} ({type(value)}) → {e}")
+        return None
 
 
+
+
+
+
+"""
+    Load and preprocess the solar installation dataset from Excel.
+
+    This function reads the dataset from an Excel file, performs the following steps:
+    - Skips irrelevant rows and columns
+    - Cleans column names
+    - Parses time fields (e.g. drive time, total install time)
+    - Converts angle values (e.g. tilt, azimuth)
+    - Encodes categorical and boolean features(change into integers)
+    - Selects numeric features and drops excluded columns(users can edit this part)
+    - Standardizes input features (X) and normalizes target variable (y)
+    - Converts both to PyTorch tensors
+
+    Parameters:
+    None
+
+    Returns:
+    --------
+    X : torch.Tensor, shape (n_samples, n_features)
+        Standardized input features used for modeling.
+    
+    y : torch.Tensor, shape (n_samples, 1)
+        Normalized target variable (installation duration in minutes, sqrt-transformed).
+    
+    X_scaler : sklearn.preprocessing.StandardScaler
+        Scaler used to standardize X (useful for inverse-transforming predictions).
+    
+    y_scaler : sklearn.preprocessing.StandardScaler
+        Scaler used to normalize y (useful for inverse-transforming predictions).
+
+    Example:
+    --------
+    >>> X, y, X_scaler, y_scaler = load_data()
+    >>> print(X.shape, y.shape)
+    torch.Size([277, 21]) torch.Size([277, 1])
+    """
 def load_data():
     """ read the excel data and return to the format we need"""
     
     base_dir = os.path.dirname(os.path.abspath(__file__))
-    file_path = os.path.join(base_dir, "..", "data", "UPDATED Dataset - Predictive Tool Development for Residential Solar Installation Duration - REV1-2.xlsx")  
+    file_path = os.path.join(base_dir, "..", "data", "UPDATED Dataset - Predictive Tool Development for Residential Solar Installation Duration - REV1-3.xlsx")  
 
     if not os.path.exists(file_path):
         print(f"File didn't find: {file_path}")
@@ -102,14 +183,14 @@ def load_data():
         
     if df[target].apply(lambda x: isinstance(x, (datetime.datetime, datetime.time, str, pd.Timedelta))).any():
         #print(f"`{target}` includes datetime, time, str or timedelta, convert to minutes")
-        df[target] = df[target].apply(convert_time_to_minutes)
+        df[target] = df[target].apply(convert_dhm_to_minutes_strict)
 
     # **make sure target is numeric to train**
     df[target] = pd.to_numeric(df[target], errors="coerce").astype("float64")
     df[target] = np.sqrt(df[target])  # apply  log(y+1) transforme to avoid negative values
 
     if df[target].isnull().sum() > 0:
-        df[target].fillna(df[target].mean(), inplace=True)
+        df[target] = df[target].fillna(df[target].mean())
 
     #print(f"Target{target} is null: {df[target].isnull().sum()}")
     #print(df[target].dtype)
@@ -170,6 +251,8 @@ def load_data():
     # **check nan/null**
     #print(f"Data is null:\n{df.isnull().sum()}")
 
+    # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    #CHANGE THE EXCLUDE COLUMNS HERE!!!!!!
     exclude_columns = [
         "Project ID", "Notes", "Total # of Days on Site",
         "Estimated # of Salaried Employees on Site",
@@ -177,6 +260,8 @@ def load_data():
         "Estimated Total Direct Time",
         "Estimated Total # of People on Site"
     ]
+
+
     # reget all the features
     features = [col for col in df.columns if col != target and col not in exclude_columns]
     missing_features = [col for col in features if col not in df.columns]
@@ -217,6 +302,14 @@ def load_data():
     print(f"Data after standardization and normalization:\n{df[features].head(10)}")
     print(f"Data loaded successfully! X shape: {X.shape}, y shape: {y.shape}")
 
+    # Optional: show a few original y values (after inverse transform and square)
+    y_sqrt = y_scaler.inverse_transform(y.numpy())  # shape: (N, 1)
+    y_real_minutes = y_sqrt ** 2                    # undo sqrt()
+
+    # Convert to pandas for pretty display
+    y_real_minutes = pd.DataFrame(y_real_minutes, columns=["Install Time (min)"])
+    print("\nFirst 10 rows of real target values (in minutes):")
+    print(y_real_minutes.head(10))
     return X, y, X_scaler, y_scaler  
 
 if __name__ == "__main__":
